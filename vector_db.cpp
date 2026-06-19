@@ -79,8 +79,8 @@ int main() {
 
 // Time Complexity of each function:
 // insert(): O(1) time on average
-// euclidean_distance(): O(d) time where n is the dimension of the vector
-// cosine_similarity(): O(d) time where n is the dimension of the vector
+// euclidean_distance(): O(d) time where d is the dimension of the vector
+// cosine_similarity(): O(d) time where d is the dimension of the vector
 // search(): O(n*d) time where n is the number of vectors and d is the dimension of the vector
 
 // Space Complexity for search(): O(n) Stores the vector (database) in RAM
