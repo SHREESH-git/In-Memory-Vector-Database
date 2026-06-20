@@ -42,7 +42,7 @@ class Vector {
             return dot / (sqrt(norm_a) * sqrt(norm_b));
         }
 
-        // Brute force linear nearest neighbour search
+        // (Cosine Similarity) Brute force linear nearest neighbour search
         int search(const vector<float>& query){
             if (database.empty()) throw std::runtime_error("Database is empty.");
         
@@ -52,6 +52,23 @@ class Vector {
             for (size_t i = 0; i < database.size(); ++i) {
                 float score = cosine_similarity(query, database[i]);
                 if (score > best_score) {
+                    best_score = score;
+                    best_index = static_cast<int>(i);
+                }
+            }
+            return best_index;
+        }
+
+        // (Euclidean distance) Brute force linear nearest neighbour search
+        int search_euclidean(const vector<float>& query){
+            if (database.empty()) throw std::runtime_error("Database is empty.");
+        
+            int best_index = -1;
+            float best_score = FLT_MAX;
+
+            for (size_t i = 0; i < database.size(); ++i) {
+                float score = euclidean_distance(query, database[i]);
+                if (score < best_score) {
                     best_score = score;
                     best_index = static_cast<int>(i);
                 }
@@ -70,9 +87,13 @@ int main() {
     vector<float> query = {0.8f, 0.3f, 0.2f};
 
     cout << "Starting brute-force linear vector search..." << endl;
-    int closest_idx = db.search(query);
-    
-    cout << "The closest mathematical match is Vector Index: " << closest_idx << endl;
+
+    // Using both:
+    int closest_idx_1 = db.search(query);
+    int closest_idx_2 = db.search_euclidean(query);
+
+    cout << "The closest mathematical match(using Cosine Similarity) is Vector Index: " << closest_idx_1 << endl;
+    cout << "The closest mathematical match(using Euclidean distance) is Vector Index: " << closest_idx_2 << endl;
 
     return 0;
 }
@@ -93,3 +114,5 @@ int main() {
 // Volatily: RAM is volatile (data is lost when power is off or C++ program crashes)
 // Capacity Limitation: Limited by the amount of RAM installed on the system.
 // Cost: More expensive than HDDs, but cheaper than SSDs.
+
+// Vector databases in real world use Cosine Similarity because LLM embeddings care more about the angle (the contextual direction) than the magnitude (the length) of the vector.
