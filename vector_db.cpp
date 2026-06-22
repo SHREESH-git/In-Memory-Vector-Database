@@ -60,21 +60,16 @@ class Vector {
         }
 
         // (Euclidean distance) Brute force linear nearest neighbour search
-        int search_euclidean(const vector<float>& query){
-            if (database.empty()) throw std::runtime_error("Database is empty.");
-        
-            int best_index = -1;
-            float best_score = FLT_MAX;
-
-            for (size_t i = 0; i < database.size(); ++i) {
-                float score = euclidean_distance(query, database[i]);
-                if (score < best_score) {
-                    best_score = score;
-                    best_index = static_cast<int>(i);
-                }
-            }
-            return best_index;
+        // Optimized: Avoids expensive pow() and uses multiplication
+static float squared_euclidean_distance(const vector<float>& a, const vector<float>& b) {
+        if(a.size() != b.size()) throw invalid_argument("Dimension mismatch");
+        float sum = 0.0f;
+        for(size_t i = 0; i < a.size(); ++i) {
+            float diff = a[i] - b[i];
+            sum += diff * diff;
         }
+        return sum; // Don't sqrt() until absolutely necessary
+    }
 };
 
 int main() {
