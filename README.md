@@ -62,9 +62,14 @@ Comparing brute-force linear search vs. greedy graph approximate search:
 
 ## Repository Structure
 
+* [VectorDBServer.cpp](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/VectorDBServer.cpp) - REST API server exposing endpoints for inserting and searching vectors.
 * [LinearSearch.cpp](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/LinearSearch.cpp) - Implementation of the 1-Million vector linear database with Cosine/Euclidean metrics.
 * [GreedyGraphSearch.cpp](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/GreedyGraphSearch.cpp) - Proximity graph construction and greedy hill-climbing nearest neighbor traversal.
 * [Comparison.cpp](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/Comparison.cpp) - Unified benchmark runner comparing linear search and greedy graph search.
+* [test_insert.py](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/test_insert.py) - Python script to verify and measure the `/insert` endpoint latency.
+* [test_search.py](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/test_search.py) - Python script to verify and measure the `/search` endpoint latency.
+* [test_dbserver.py](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/test_dbserver.py) - General Python script to test REST API connectivity.
+* [run_vectordbserver.bat](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/run_vectordbserver.bat) - Windows batch file to compile and run the REST API server.
 * [run_linear_search.bat](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/run_linear_search.bat) - Windows batch file to compile and execute `LinearSearch.cpp` with `-O3` optimization.
 * [run_greedy_graph_search.bat](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/run_greedy_graph_search.bat) - Windows batch file to compile and execute `GreedyGraphSearch.cpp`.
 * [run_comparison.bat](file:///d:/Resume_Projects/In-Memory%20Vector%20Database/run_comparison.bat) - Windows batch file to run the side-by-side benchmark suite.
@@ -74,32 +79,61 @@ Comparing brute-force linear search vs. greedy graph approximate search:
 
 ## Quick Start
 
-### Prerequisites
-* A C++ compiler supporting C++17 or higher (e.g., `g++` via MSYS2 MinGW-w64 on Windows).
+### Prerequisites & Dependencies
 
-### Running Benchmarks on Windows
+* **C++ Compiler:** A C++ compiler supporting C++17 or higher (e.g., `g++` via MSYS2 MinGW-w64 on Windows).
+* **Python Runtime:** Python 3.x and the `requests` library (for running API simulation tests).
+* **C++ Libraries (Header-only, included in root):**
+  * **[cpp-httplib](https://github.com/yhirose/cpp-httplib):** A lightweight C++11 header-only HTTP server/client library.
+  * **[nlohmann/json](https://github.com/nlohmann/json):** A modern C++ header-only JSON library.
+
+### Running Benchmarks & Server on Windows
 Double-click or run any of the utility batch files in your terminal:
 
-1. **Run Linear Search (1M vectors):**
+1. **Start the REST API Server (Port 8080):**
+   ```cmd
+   run_vectordbserver.bat
+   ```
+
+2. **Run Linear Search (1M vectors):**
    ```cmd
    run_linear_search.bat
    ```
 
-2. **Run Greedy Graph Search:**
+3. **Run Greedy Graph Search:**
    ```cmd
    run_greedy_graph_search.bat
    ```
 
-3. **Run Performance Comparison:**
+4. **Run Performance Comparison:**
    ```cmd
    run_comparison.bat
    ```
 
+### Testing the REST API Server via Python
+While `VectorDBServer.exe` is running, execute the Python test scripts to benchmark network and application latency:
+
+1. **Test Insertion API (`/insert`):**
+   ```bash
+   python test_insert.py
+   ```
+   * **C++ DB Insertion Latency:** **~2.62 ms** (includes priority-queue graph traversal and bidirectional link construction)
+   * **Python Request Elapsed Time:** **~5.26 ms**
+   * **Network Round-Trip Time (RTT):** **~6.92 ms**
+
+2. **Test Search API (`/search`):**
+   ```bash
+   python test_search.py
+   ```
+   * **C++ DB Search Latency (Greedy ANN):** **~0.017 ms** (equivalent to **17 microseconds**!)
+   * **Python Request Elapsed Time:** **~1.44 ms**
+   * **Network Round-Trip Time (RTT):** **~2.99 ms**
+
 ### Manual Compilation
-If you are on Linux or macOS, compile using:
+If you are on Linux or macOS, compile and run the server using:
 ```bash
-g++ -std=c++17 -O3 Comparison.cpp -o Comparison
-./Comparison
+g++ -std=c++17 -O3 VectorDBServer.cpp -o VectorDBServer -lpthread
+./VectorDBServer
 ```
 
 ---
@@ -108,5 +142,5 @@ g++ -std=c++17 -O3 Comparison.cpp -o Comparison
 
 Future enhancements planned for this project:
 - [ ] **HNSW (Hierarchical Navigable Small World) Indexing:** Replace the single-layered proximity graph with a multi-layered skip-list style graph index to bypass the $O(N^2)$ write penalty and achieve logarithmic ($O(\log N)$) search complexity on large datasets.
-- [ ] **C++ REST API:** Integrate a lightweight networking framework (such as `httplib` or `Crow`) to expose HTTP endpoints (`POST /insert` and `POST /search`) for client applications.
+- [x] **C++ REST API:** Integrate a lightweight networking framework (such as `httplib` or `Crow`) to expose HTTP endpoints (`POST /insert` and `POST /search`) for client applications.
 - [ ] **SIMD Optimization:** Utilize AVX2 / AVX-512 instructions to parallelize distance math calculation loops.
