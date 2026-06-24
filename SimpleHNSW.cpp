@@ -71,7 +71,7 @@ class VectorDatabase {
             return sum;
         }
 
-        // Simple HNSW SEARCH: O(log N)
+        // Simple HNSW SEARCH: 
         pair<int, float> search_hnsw(const vector<float>& query) {
             if (nodes.empty()) return {-1, 0.0f};
 
@@ -201,13 +201,16 @@ int main() {
 }
 
 /*
-Complexity Analysis of Simple HNSW:
+Simple HNSW-inspired ANN Index
 
-Time Complexity:
-- Search: Average O(log N * d) where N is number of nodes, d is vector dimension.
-- Insertion: Average O(log N * d + M * d).
-- Graph Construction: O(N * log N * d) which is significantly faster than the O(N^2 * d) baseline graph construction.
+Features:
+- Probabilistic multi-layer graph
+- Hierarchical greedy traversal
+- Multi-neighbor graph construction
+- Approximate nearest neighbor search
 
-Space Complexity:
-- O(N * (d + M * H)) where H is the average number of layers (usually ~log(N) with factor log(M)).
+Limitations:
+- Uses greedy search instead of efSearch
+- Uses local neighborhood expansion instead of efConstruction
+- Not a full production HNSW implementation
 */
