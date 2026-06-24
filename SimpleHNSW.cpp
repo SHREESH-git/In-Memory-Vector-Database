@@ -118,3 +118,4 @@ class VectorDatabase {
                 enter_point = new_idx;
             }
         }
+    };
