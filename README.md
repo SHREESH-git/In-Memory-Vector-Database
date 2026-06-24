@@ -141,6 +141,6 @@ g++ -std=c++17 -O3 VectorDBServer.cpp -o VectorDBServer -lpthread
 ## Development Roadmap
 
 Future enhancements planned for this project:
-- [ ] **HNSW (Hierarchical Navigable Small World) Indexing:** Replace the single-layered proximity graph with a multi-layered skip-list style graph index to bypass the $O(N^2)$ write penalty and achieve logarithmic ($O(\log N)$) search complexity on large datasets.
+- [ ] **HNSW (Hierarchical Navigable Small World) Indexing:** Replace the single-layered proximity graph with a multi-layered skip-list style graph index to bypass the $O(N^2)$ write penalty and achieve logarithmic $O(log N)$ search complexity on large datasets.
 - [x] **C++ REST API:** Integrate a lightweight networking framework (such as `httplib` or `Crow`) to expose HTTP endpoints (`POST /insert` and `POST /search`) for client applications.
 - [ ] **SIMD Optimization:** Utilize AVX2 / AVX-512 instructions to parallelize distance math calculation loops.
