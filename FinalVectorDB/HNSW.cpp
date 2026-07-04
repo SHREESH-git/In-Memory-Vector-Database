@@ -9,14 +9,11 @@
 #include <cfloat>
 #include <algorithm>
 #include <queue>
-#include <unordered_set> // Added to keep track of visited nodes
-
-
-#include "httplib.h"
-#include "json.hpp"
+#include <unordered_set>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
-using json = nlohmann::json;
 
 
 struct Node {
@@ -197,142 +194,75 @@ class VectorDatabase {
         }
 };
 
-
-// HTTP SERVER 
+// Helper function to load dataset
+vector<vector<float>> load_dataset(const string& filename) {
+    vector<vector<float>> data;
+    ifstream in(filename);
+    if (!in.is_open()) {
+        cerr << "Could not open " << filename << endl;
+        return data;
+    }
+    string line;
+    while (getline(in, line)) {
+        stringstream ss(line);
+        vector<float> vec;
+        float val;
+        while (ss >> val) {
+            vec.push_back(val);
+        }
+        if (!vec.empty()) data.push_back(vec);
+    }
+    in.close();
+    return data;
+}
 
 int main() {
     VectorDatabase db;
 
+    cout << "Loading dataset.txt..." << endl;
+    vector<vector<float>> dataset = load_dataset("dataset.txt");
+    if (dataset.empty()) {
+        cerr << "Failed to load dataset." << endl;
+        return 1;
+    }
 
-    int num_vectors = 10000; 
-    cout << "Inserting " << num_vectors << " base vectors using HNSW (ef=32):" << endl;
+    cout << "Inserting " << dataset.size() << " base vectors using Optimized HNSW (efConstruction=32, M=16):" << endl;
     
     srand(42); 
     auto start_insert = chrono::high_resolution_clock::now();
-    for(int i = 0; i < num_vectors; ++i) {
-        vector<float> v(128);
-        for(int j = 0; j < 128; ++j) v[j] = static_cast<float>(rand()) / RAND_MAX;
-        db.insert(v);
+    for (const auto& vec : dataset) {
+        db.insert(vec);
     }
     auto end_insert = chrono::high_resolution_clock::now();
     chrono::duration<double, milli> elapsed_insert = end_insert - start_insert;
 
-    cout << "Graph Construction Complete(efConstruction)" << endl;
+    cout << "Graph Construction Complete!" << endl;
     cout << "HNSW Insertion Time: " << elapsed_insert.count() << " ms" << endl;
 
-    
 
-    httplib::Server svr;
-
-    svr.Post("/insert", [&](const httplib::Request& req, httplib::Response& res) {
-    
-        try {
-            auto j = json::parse(req.body);
-            vector<float> vec = j["vector"].get<vector<float>>();
-            auto start = chrono::high_resolution_clock::now();
-            db.insert(vec);
-            auto end = chrono::high_resolution_clock::now();
-            chrono::duration<double, milli> elapsed = end - start;
-            json response = {{"status", "success"}, {"message", "Vector indexed."}, {"latency_ms", elapsed.count()}};
-            res.set_content(response.dump(), "application/json");
-        } catch (...) { res.status = 400; res.set_content(R"({"error": "Invalid JSON."})", "application/json"); }
-    });
-
-    svr.Post("/search", [&](const httplib::Request& req, httplib::Response& res) {
-        try {
-            auto j = json::parse(req.body);
-            vector<float> query = j["query"].get<vector<float>>();
-            auto start = chrono::high_resolution_clock::now();
-            pair<int, float> result = db.search_hnsw(query);
-            auto end = chrono::high_resolution_clock::now();
-            chrono::duration<double, milli> elapsed = end - start;
-            json response = {
-                {"status", "success"}, 
-                {"nearest_node_index", result.first}, 
-                {"distance_score", result.second}, 
-                {"latency_ms", elapsed.count()}, 
-                {"algorithm", "HNSW efSearch"}
-            };
-            res.set_content(response.dump(), "application/json");
-        } catch (...) { res.status = 400; res.set_content(R"({"error": "Invalid JSON."})", "application/json"); }
-    });
-
-    cout << "Vector Database API is LIVE" << endl;
-    cout << "Listening for connections on http://localhost:8080" << endl;
-
-    svr.listen("0.0.0.0", 8080);
-
-/*
-
-cout << "\nRunning HNSW Search Benchmark.." << endl;
-
-int num_queries = 1000;
-double total_search_time = 0.0;
-
-for(int i = 0; i < num_queries; i++){
-
-    // random query vector
-    vector<float> query(128);
-
-    for(int j = 0; j < 128; j++){
-        query[j] = static_cast<float>(rand()) / RAND_MAX;
+    cout << "Loading queries.txt..." << endl;
+    vector<vector<float>> queries = load_dataset("queries.txt");
+    if (queries.empty()) {
+        cerr << "Failed to load queries." << endl;
+        return 1;
     }
 
-    auto start = chrono::high_resolution_clock::now();
+    cout << "\nRunning Optimized HNSW Search Benchmark.." << endl;
 
-    pair<int,float> result = db.search_hnsw(query);
-
-    auto end = chrono::high_resolution_clock::now();
-
-    chrono::duration<double, milli> elapsed = end - start;
-
-    total_search_time += elapsed.count();
-
-
-    // Print first 5 results
-    if(i < 5){
-        cout << "Query " << i+1 << endl;
-        cout << "Nearest Node: " << result.first << endl;
-        cout << "Distance: " << result.second << endl;
-        cout << "Search Time: "
-             << elapsed.count()
-             << " ms\n"
-             << endl;
+    double total_search_time = 0.0;
+    volatile long long dummy_sum = 0; // Prevent compiler optimization
+    for(const auto& query : queries){
+        auto start = chrono::high_resolution_clock::now();
+        pair<int,float> result = db.search_hnsw(query);
+        auto end = chrono::high_resolution_clock::now();
+        chrono::duration<double, milli> elapsed = end - start;
+        total_search_time += elapsed.count();
+        dummy_sum += result.first;
     }
-}
 
-cout << "Total Queries: " << num_queries << endl;
-
-cout << "Average Search Latency: "
-     << total_search_time / num_queries
-     << " ms"
-     << endl;
-
-cout << "QPS (Queries/sec): "
-     << 1000.0 / (total_search_time / num_queries)
-     << endl;
-*/
-
+    cout << "Total search time for " << queries.size() << " queries: " << total_search_time << " ms" << endl;
+    cout << "Average Search Latency: " << (total_search_time / queries.size()) << " ms" << endl;
+    cout << "QPS (Queries/sec): " << (1000.0 / (total_search_time / queries.size())) << endl;
 
     return 0;
 }
-
-
-/*
-Single Insert:
-O(efConstruction × M × logN × d)
-
-Graph Construction:
-O(N × efConstruction × M × logN × d)
-≈ O(N logN × d)
-
-HNSW Search (Average):
-O(efSearch × M × logN × d)
-≈ O(logN × d)
-
-HNSW Search (Worst Case):
-O(N × d)
-
-Space:
-O(N × (d + M))
-*/

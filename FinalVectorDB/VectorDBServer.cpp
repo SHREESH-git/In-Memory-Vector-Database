@@ -1,6 +1,3 @@
-// HNSW with efSearch and efConstruction with candidate priority queue search
-// Approach taken from HNSW paper
-
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -9,15 +6,16 @@
 #include <cfloat>
 #include <algorithm>
 #include <queue>
-#include <unordered_set> // Added to keep track of visited nodes
+#include <unordered_set>
+#include <fstream>
+#include <sstream>
 
-
+// Network LIBRARIES 
 #include "httplib.h"
 #include "json.hpp"
 
 using namespace std;
-using json = nlohmann::json;
-
+using json = nlohmann::json; 
 
 struct Node {
     vector<float> data;
@@ -48,9 +46,7 @@ class VectorDatabase {
             return (int)(-log(r) * level_mult);
         }
 
-        
         // PRIORITY QUEUE CANDIDATE SEARCH
-        
         priority_queue<pair<float, int>> search_layer(const vector<float>& query, int ep, int ef, int layer) {
             unordered_set<int> visited;
             visited.insert(ep);
@@ -197,142 +193,119 @@ class VectorDatabase {
         }
 };
 
+// Helper function to load dataset
+vector<vector<float>> load_dataset(const string& filename) {
+    vector<vector<float>> data;
+    ifstream in(filename);
+    if (!in.is_open()) {
+        cerr << "Could not open " << filename << endl;
+        return data;
+    }
+    string line;
+    while (getline(in, line)) {
+        stringstream ss(line);
+        vector<float> vec;
+        float val;
+        while (ss >> val) {
+            vec.push_back(val);
+        }
+        if (!vec.empty()) data.push_back(vec);
+    }
+    in.close();
+    return data;
+}
 
-// HTTP SERVER 
+// THE NETWORK LAYER (REST API)
 
 int main() {
     VectorDatabase db;
 
+    cout << "Loading dataset.txt..." << endl;
+    vector<vector<float>> dataset = load_dataset("dataset.txt");
+    if (dataset.empty()) {
+        cerr << "Failed to load dataset.txt" << endl;
+        return 1;
+    }
 
-    int num_vectors = 10000; 
-    cout << "Inserting " << num_vectors << " base vectors using HNSW (ef=32):" << endl;
+    cout << "Inserting " << dataset.size() << " base vectors using Optimized HNSW (ef=32, M=16).." << endl;
     
     srand(42); 
     auto start_insert = chrono::high_resolution_clock::now();
-    for(int i = 0; i < num_vectors; ++i) {
-        vector<float> v(128);
-        for(int j = 0; j < 128; ++j) v[j] = static_cast<float>(rand()) / RAND_MAX;
-        db.insert(v);
+    for (const auto& vec : dataset) {
+        db.insert(vec);
     }
     auto end_insert = chrono::high_resolution_clock::now();
     chrono::duration<double, milli> elapsed_insert = end_insert - start_insert;
 
-    cout << "Graph Construction Complete(efConstruction)" << endl;
-    cout << "HNSW Insertion Time: " << elapsed_insert.count() << " ms" << endl;
-
-    
+    cout << "Graph Construction Complete!" << endl;
+    cout << "Insertion Time: " << elapsed_insert.count() << " ms" << endl;
 
     httplib::Server svr;
 
+    // POST /insert Endpoint
     svr.Post("/insert", [&](const httplib::Request& req, httplib::Response& res) {
-    
         try {
             auto j = json::parse(req.body);
             vector<float> vec = j["vector"].get<vector<float>>();
+
+            if(vec.size() != 128) {
+                res.status = 400;
+                res.set_content(R"({"error": "Dimension mismatch."})", "application/json");
+                return;
+            }
+
             auto start = chrono::high_resolution_clock::now();
             db.insert(vec);
             auto end = chrono::high_resolution_clock::now();
             chrono::duration<double, milli> elapsed = end - start;
-            json response = {{"status", "success"}, {"message", "Vector indexed."}, {"latency_ms", elapsed.count()}};
+
+            json response;
+            response["status"] = "success";
+            response["message"] = "Vector indexed.";
+            response["latency_ms"] = elapsed.count();
+
             res.set_content(response.dump(), "application/json");
-        } catch (...) { res.status = 400; res.set_content(R"({"error": "Invalid JSON."})", "application/json"); }
+        } catch (...) {
+            res.status = 400;
+            res.set_content(R"({"error": "Invalid JSON."})", "application/json");
+        }
     });
 
+    // POST /search Endpoint
     svr.Post("/search", [&](const httplib::Request& req, httplib::Response& res) {
         try {
             auto j = json::parse(req.body);
             vector<float> query = j["query"].get<vector<float>>();
+
+            if(query.size() != 128) {
+                res.status = 400;
+                res.set_content(R"({"error": "Dimension mismatch."})", "application/json");
+                return;
+            }
+
             auto start = chrono::high_resolution_clock::now();
             pair<int, float> result = db.search_hnsw(query);
             auto end = chrono::high_resolution_clock::now();
             chrono::duration<double, milli> elapsed = end - start;
-            json response = {
-                {"status", "success"}, 
-                {"nearest_node_index", result.first}, 
-                {"distance_score", result.second}, 
-                {"latency_ms", elapsed.count()}, 
-                {"algorithm", "HNSW efSearch"}
-            };
+
+            json response;
+            response["status"] = "success";
+            response["nearest_node_index"] = result.first;
+            response["distance_score"] = result.second;
+            response["latency_ms"] = elapsed.count();
+            response["algorithm"] = "HNSW efSearch";
+
             res.set_content(response.dump(), "application/json");
-        } catch (...) { res.status = 400; res.set_content(R"({"error": "Invalid JSON."})", "application/json"); }
+        } catch (...) {
+            res.status = 400;
+            res.set_content(R"({"error": "Invalid JSON."})", "application/json");
+        }
     });
 
-    cout << "Vector Database API is LIVE" << endl;
+    cout << " Vector Database API is LIVE!" << endl;
     cout << "Listening for connections on http://localhost:8080" << endl;
 
     svr.listen("0.0.0.0", 8080);
 
-/*
-
-cout << "\nRunning HNSW Search Benchmark.." << endl;
-
-int num_queries = 1000;
-double total_search_time = 0.0;
-
-for(int i = 0; i < num_queries; i++){
-
-    // random query vector
-    vector<float> query(128);
-
-    for(int j = 0; j < 128; j++){
-        query[j] = static_cast<float>(rand()) / RAND_MAX;
-    }
-
-    auto start = chrono::high_resolution_clock::now();
-
-    pair<int,float> result = db.search_hnsw(query);
-
-    auto end = chrono::high_resolution_clock::now();
-
-    chrono::duration<double, milli> elapsed = end - start;
-
-    total_search_time += elapsed.count();
-
-
-    // Print first 5 results
-    if(i < 5){
-        cout << "Query " << i+1 << endl;
-        cout << "Nearest Node: " << result.first << endl;
-        cout << "Distance: " << result.second << endl;
-        cout << "Search Time: "
-             << elapsed.count()
-             << " ms\n"
-             << endl;
-    }
-}
-
-cout << "Total Queries: " << num_queries << endl;
-
-cout << "Average Search Latency: "
-     << total_search_time / num_queries
-     << " ms"
-     << endl;
-
-cout << "QPS (Queries/sec): "
-     << 1000.0 / (total_search_time / num_queries)
-     << endl;
-*/
-
-
     return 0;
 }
-
-
-/*
-Single Insert:
-O(efConstruction × M × logN × d)
-
-Graph Construction:
-O(N × efConstruction × M × logN × d)
-≈ O(N logN × d)
-
-HNSW Search (Average):
-O(efSearch × M × logN × d)
-≈ O(logN × d)
-
-HNSW Search (Worst Case):
-O(N × d)
-
-Space:
-O(N × (d + M))
-*/

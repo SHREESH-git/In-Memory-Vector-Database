@@ -1,0 +1,8 @@
+Loading dataset.txt...
+Database construction complete! Time taken: 20.9591 ms
+Loading queries.txt...
+
+Starting brute-force linear vector search (Squared Euclidean)
+Total search time for 1000 queries: 6814.86 ms
+Average search latency: 6.81486 ms
+QPS (Queries per second): 146.738

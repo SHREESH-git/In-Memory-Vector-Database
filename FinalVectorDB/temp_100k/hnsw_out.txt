@@ -1,0 +1,10 @@
+Loading dataset.txt...
+Inserting 100000 base vectors using Optimized HNSW (efConstruction=32, M=16):
+Graph Construction Complete!
+HNSW Insertion Time: 138382 ms
+Loading queries.txt...
+
+Running Optimized HNSW Search Benchmark..
+Total search time for 1000 queries: 1400.9 ms
+Average Search Latency: 1.2939 ms
+QPS (Queries/sec): 499.38
