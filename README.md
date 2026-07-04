@@ -71,6 +71,6 @@ Response:
     "latency_ms": 0.04,
     "algorithm": "HNSW efSearch"
 }
----
+
 **To run the benchmarks yourself:**
 Use the provided `.bat` files in this directory! For example, run `run_generate_dataset.bat` first, followed by `run_vectordbserver.bat`.
