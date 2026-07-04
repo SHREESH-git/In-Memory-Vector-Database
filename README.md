@@ -36,7 +36,7 @@ As the dataset grows from 10,000 to 100,000 vectors, Linear Search latency scale
 
 Here is the visual representation of the complexity for the Vector Search Architectures:
 
-![Time and Space Complexity](../FinalVectorDB/Time&Space.png)
+![Time and Space Complexity](FinalVectorDB/Time&Space.png)
 
 ## REST API
 
